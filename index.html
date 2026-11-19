@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>DAYA DUKUNG TANAH PRO — Analisis Daya Dukung & Penurunan Pondasi</title>
-<meta name="description" content="Aplikasi analisis daya dukung tanah profesional: Terzaghi, Meyerhof, Hansen, Vesic, koreksi muka air tanah, penurunan elastis & konsolidasi, risalah teknis otomatis, laporan Word, bumi 3D realistis, dan chatbot teknis bersumber.">
+<title>DAYA DUKUNG TANAH PRO v2.0 — Daya Dukung, Penurunan, Simulasi Keruntuhan & Peta Geoteknik</title>
+<meta name="description" content="Aplikasi daya dukung tanah profesional v2.0: Terzaghi, Meyerhof, Hansen, Vesic, penurunan elastis & konsolidasi, simulasi animasi zona keruntuhan, bulb tekanan Boussinesq, peta zona daya dukung Indonesia, risalah teknis otomatis, laporan Word, dan chatbot teknis bersumber.">
 <meta name="theme-color" content="#050a12">
 <meta property="og:title" content="DAYA DUKUNG TANAH PRO">
 <meta property="og:description" content="Analisis daya dukung tanah & penurunan pondasi dengan risalah teknis, saran teknis, dan kesimpulan otomatis.">
@@ -12,6 +12,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050a12'/%3E%3Cpath d='M12 44h40M18 44V30h28v14M24 30V22h16v8' stroke='%23f59e0b' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='15' r='4' fill='%2322d3ee'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -405,6 +407,123 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
   main{padding:0!important}
 }
 </style>
+<style id="ddtV2Style">
+/* ================= V2: SIMULASI VISUAL & PETA ================= */
+.vizStage{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--stroke);
+  background:linear-gradient(180deg,#0a1c2c 0%,#061320 55%,#040d17 100%);height:clamp(300px,44vh,460px)}
+body.light .vizStage{background:linear-gradient(180deg,#e4eef8 0%,#cfe0ef 55%,#bcd3e6 100%)}
+.vizStage canvas{display:block;width:100%;height:100%}
+.vizHud{position:absolute;top:9px;left:9px;right:9px;display:flex;flex-wrap:wrap;gap:5px;pointer-events:none}
+.vizHud span{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border-radius:7px;
+  background:rgba(4,12,22,.72);border:1px solid rgba(34,211,238,.32);color:#a9e8f6;backdrop-filter:blur(6px)}
+body.light .vizHud span{background:rgba(255,255,255,.85);color:#0b3b4a;border-color:rgba(8,110,140,.3)}
+.vizHud span.hi{border-color:rgba(245,158,11,.55);color:#fcd34d}
+.vizCtl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:11px}
+.vizCtl .field{margin:0}
+.vizCtl label{font-size:10.5px}
+.vizCtl label b{font-size:10.5px;color:var(--cyan)}
+.vizBtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.vbtn{font-size:11px;font-weight:600;padding:6px 11px;border-radius:9px;cursor:pointer;color:var(--muted);
+  background:rgba(148,180,214,.08);border:1px solid var(--stroke);transition:.18s;display:inline-flex;gap:6px;align-items:center}
+.vbtn:hover{color:var(--txt);border-color:rgba(34,211,238,.5)}
+.vbtn.on{color:#06121f;background:linear-gradient(120deg,var(--cyan),#67e8f9);border-color:rgba(34,211,238,.7);font-weight:800}
+body.light .vbtn.on{color:#02222b}
+.vbtn.warn.on{background:linear-gradient(120deg,var(--red),#fb7185);color:#fff}
+
+/* komponen kontribusi */
+.termRow{margin-bottom:12px}
+.termRow .th{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.termRow .th b{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--txt)}
+.termRow .th i{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan)}
+.termBar{height:13px;border-radius:7px;background:rgba(148,180,214,.12);overflow:hidden;position:relative}
+.termBar span{display:block;height:100%;width:0;border-radius:7px;transition:width .8s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(90deg,var(--amber),var(--amber2))}
+.termBar.b2 span{background:linear-gradient(90deg,var(--cyan),#67e8f9)}
+.termBar.b3 span{background:linear-gradient(90deg,var(--violet),#c4b5fd)}
+.termNote{font-size:10.5px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace}
+.termTotal{margin-top:6px;padding:9px 11px;border-radius:10px;background:rgba(16,185,129,.09);
+  border:1px solid rgba(16,185,129,.3);font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.termTotal b{font-family:'Orbitron',sans-serif;font-size:15px;color:#6ee7b7}
+
+/* langkah animasi */
+.stepList{display:flex;flex-direction:column;gap:8px}
+.stepCard{border:1px solid var(--stroke);border-radius:11px;padding:10px 12px;cursor:pointer;transition:.2s;
+  background:rgba(148,180,214,.04);position:relative;overflow:hidden}
+.stepCard .sn{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--stroke)}
+.stepCard.on{background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.5)}
+.stepCard.on .sn{background:linear-gradient(180deg,var(--amber),var(--cyan))}
+.stepCard h4{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.stepCard .fx{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--txt);line-height:1.6;word-break:break-word}
+.stepCard .rs{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;color:var(--amber2);margin-top:3px}
+.stepCard .prog{height:2px;background:rgba(148,180,214,.15);margin-top:7px;border-radius:2px;overflow:hidden}
+.stepCard .prog i{display:block;height:100%;width:0;background:var(--cyan)}
+
+/* ================= PETA ================= */
+#petaWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--stroke);height:clamp(340px,56vh,560px)}
+#geoMap{width:100%;height:100%;background:#07131f;z-index:1}
+.leaflet-container{background:#07131f!important;font-family:'Inter',system-ui,sans-serif}
+body.light .leaflet-container{background:#dbe7f2!important}
+.leaflet-control-attribution{background:rgba(5,12,20,.72)!important;color:#8fa6bd!important;font-size:9px!important}
+.leaflet-control-attribution a{color:#67e8f9!important}
+.leaflet-bar a{background:rgba(6,16,27,.9)!important;color:#dbeafe!important;border-color:rgba(120,160,200,.25)!important}
+.leaflet-bar a:hover{background:rgba(34,211,238,.25)!important}
+.leaflet-popup-content-wrapper{background:rgba(7,17,29,.97)!important;color:#e8f1fb!important;
+  border:1px solid rgba(34,211,238,.45)!important;border-radius:13px!important;box-shadow:0 18px 44px rgba(0,0,0,.6)!important}
+.leaflet-popup-content{margin:0!important;width:auto!important;font-size:12px!important}
+.leaflet-popup-tip{background:rgba(7,17,29,.97)!important;border-left:1px solid rgba(34,211,238,.4)!important;border-top:1px solid rgba(34,211,238,.4)!important}
+.leaflet-popup-close-button{color:#8fa6bd!important;font-size:18px!important;padding:6px 8px 0 0!important}
+.leaflet-popup-close-button:hover{color:#fff!important}
+.geoPop{padding:12px 13px;max-width:296px;max-height:52vh;overflow:auto}
+.geoPop .gpHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.geoPop .gpHead b{font-family:'Orbitron',sans-serif;font-size:13.5px;letter-spacing:.02em}
+.geoPop .gpBadge{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;
+  background:rgba(34,211,238,.14);border:1px solid currentColor;white-space:nowrap}
+.geoPop .gpSub{font-size:10.5px;color:#93a8bf;margin:2px 0 8px;font-family:'JetBrains Mono',monospace}
+.geoPop table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10.5px;font-family:'JetBrains Mono',monospace}
+.geoPop table td{padding:2px 0;border-bottom:1px dashed rgba(120,160,200,.16);color:#c3d5e6}
+.geoPop table td:last-child{text-align:right;color:#fcd34d;font-weight:700}
+.geoPop .gpSec{margin-top:7px;border-left:2px solid rgba(34,211,238,.5);padding-left:8px}
+.geoPop .gpSec b{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#67e8f9;display:block;margin-bottom:2px}
+.geoPop .gpSec p{margin:0;font-size:10.8px;color:#c3d5e6;line-height:1.5}
+.geoPop .gpBtn{margin-top:10px;width:100%;padding:7px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:800;
+  background:linear-gradient(120deg,var(--amber2),var(--amber));color:#221400;border:0;font-family:'Orbitron',sans-serif;letter-spacing:.03em}
+.geoPop .gpBtn:hover{filter:brightness(1.08)}
+.geoLegend{position:absolute;left:10px;bottom:12px;z-index:500;background:rgba(5,13,22,.86);backdrop-filter:blur(8px);
+  border:1px solid var(--stroke);border-radius:11px;padding:8px 10px;font-size:9.5px;font-family:'JetBrains Mono',monospace;color:#c3d5e6}
+.geoLegend b{display:block;font-size:9px;letter-spacing:.08em;color:#93a8bf;margin-bottom:4px;text-transform:uppercase}
+.geoLegend .lgRow{display:flex;align-items:center;gap:5px;margin-top:2px}
+.geoLegend .dot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(255,255,255,.5)}
+.geoTools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.geoTools input[type=text]{flex:1 1 190px;min-width:150px}
+.geoSug{position:relative;flex:1 1 190px;min-width:150px}
+.geoSug input{width:100%}
+.geoSugList{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:900;background:rgba(6,15,25,.98);
+  border:1px solid rgba(34,211,238,.4);border-radius:10px;overflow:hidden;max-height:230px;overflow-y:auto;display:none}
+.geoSugList.on{display:block}
+.geoSugList button{display:block;width:100%;text-align:left;padding:7px 10px;background:transparent;border:0;color:var(--txt);
+  font-size:11.5px;cursor:pointer;font-family:'Inter',sans-serif}
+.geoSugList button:hover{background:rgba(34,211,238,.14)}
+.geoSugList button small{color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:9.5px}
+.geoStat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.geoStat div{padding:8px 10px;border-radius:10px;background:rgba(148,180,214,.06);border:1px solid var(--stroke)}
+.geoStat span{display:block;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.geoStat b{font-family:'Orbitron',sans-serif;font-size:15px}
+.geoList{max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:5px;padding-right:3px}
+.geoItem{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 9px;border-radius:8px;cursor:pointer;
+  background:rgba(148,180,214,.05);border:1px solid var(--stroke);font-size:11px;transition:.16s}
+.geoItem:hover{background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.45)}
+.geoItem .nm{font-weight:600}
+.geoItem .nm small{display:block;font-weight:400;color:var(--muted);font-size:9.5px;font-family:'JetBrains Mono',monospace}
+.geoItem .qa{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700}
+.geoNote{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+@media (max-width:760px){
+  .vizCtl{grid-template-columns:1fr 1fr}
+  .geoLegend{display:none}
+  #petaWrap{height:clamp(300px,52vh,440px)}
+}
+
+</style>
 </head>
 <body class="theme-dark">
 <div id="bgEarthWrap"><div id="bgEarthCanvas"></div></div>
@@ -473,8 +592,8 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
   <div class="brandRow">
     <div class="logo"><i class="fa-solid fa-layer-group"></i></div>
     <div class="brand">
-      <div class="t">DAYA DUKUNG TANAH <span>PRO</span></div>
-      <div class="sub">SOIL BEARING CAPACITY · SETTLEMENT · FOUNDATION DESIGN</div>
+      <div class="t">DAYA DUKUNG TANAH <span>PRO</span> <span style="font-size:.72em;opacity:.85">v2.0</span></div>
+      <div class="sub">BEARING CAPACITY · SETTLEMENT · SHEAR SIMULATION · GEO-MAP</div>
     </div>
     <div class="hud">
       <span class="chip"><span class="dot"></span><span id="hudTime">--:--</span></span>
@@ -504,6 +623,8 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
     <button class="tab" data-tab="daya"><i class="fa-solid fa-calculator"></i> Daya Dukung</button>
     <button class="tab" data-tab="turun"><i class="fa-solid fa-arrow-down-long"></i> Penurunan</button>
     <button class="tab" data-tab="grafik"><i class="fa-solid fa-chart-line"></i> Grafik</button>
+    <button class="tab" data-tab="visual"><i class="fa-solid fa-diagram-project"></i> Simulasi Visual</button>
+    <button class="tab" data-tab="peta"><i class="fa-solid fa-map-location-dot"></i> Peta Geoteknik</button>
     <button class="tab" data-tab="risalah"><i class="fa-solid fa-file-lines"></i> Risalah Teknis</button>
     <button class="tab" data-tab="laporan"><i class="fa-solid fa-file-export"></i> Laporan</button>
     <button class="tab" data-tab="alat"><i class="fa-solid fa-screwdriver-wrench"></i> Alat Hitung</button>
@@ -517,7 +638,7 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
         <p>Mesin hitung geoteknik dengan empat metode daya dukung (Terzaghi, Meyerhof, Hansen, Vesic), koreksi muka air tanah, penurunan elastis dan konsolidasi, serta risalah teknis, saran teknis dan kesimpulan yang tersusun otomatis dari data Anda.</p>
         <div class="chips">
           <span class="tag">TERZAGHI</span><span class="tag">MEYERHOF</span><span class="tag">HANSEN</span><span class="tag">VESIC</span>
-          <span class="tag">GWT CORRECTION</span><span class="tag">SETTLEMENT</span><span class="tag">IS 6403 · SNI 8460</span>
+          <span class="tag">GWT CORRECTION</span><span class="tag">SETTLEMENT</span><span class="tag">SIMULASI KERUNTUHAN</span><span class="tag">PETA ZONA</span><span class="tag">IS 6403 · SNI 8460</span>
         </div>
       </div>
 
@@ -738,6 +859,131 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
       </div>
     </section>
 
+    <!-- ============ SIMULASI VISUAL ============ -->
+    <section class="panel" id="p-visual">
+      <div class="hero" style="background:linear-gradient(120deg,rgba(34,211,238,.13),rgba(167,139,250,.08) 55%,transparent);border-color:rgba(34,211,238,.3)">
+        <h1 style="font-size:clamp(17px,2.5vw,24px)">Simulasi <span>Mekanisme Daya Dukung</span></h1>
+        <p>Visualisasi interaktif zona keruntuhan geser (baji aktif, kipas radial, baji pasif), kontribusi tiap suku rumus, bulb tekanan Boussinesq, dan animasi langkah hitung. Geser parameter untuk melihat respons langsung.</p>
+        <div class="chips"><span class="tag">SHEAR FAILURE</span><span class="tag">ZONA I–II–III</span><span class="tag">BOUSSINESQ</span><span class="tag">LIVE PARAMETER</span></div>
+      </div>
+
+      <div class="grid g23" style="margin-bottom:14px">
+        <div class="card">
+          <h3><i class="fa-solid fa-diagram-project"></i> Potongan Pondasi &amp; Zona Keruntuhan</h3>
+          <div class="vizStage" id="vizStage">
+            <canvas id="vizFooting"></canvas>
+            <div class="vizHud">
+              <span id="vzQu">q<sub>u</sub> —</span>
+              <span id="vzQa">q<sub>a</sub> —</span>
+              <span class="hi" id="vzMode">MODE: KERUNTUHAN</span>
+            </div>
+          </div>
+          <div class="vizCtl">
+            <div class="field"><label>Lebar B <b><span id="vzBVal">2,0</span> m</b></label>
+              <input type="range" id="vzB" min="0.6" max="6" step="0.1" value="2"></div>
+            <div class="field"><label>Kedalaman D<sub>f</sub> <b><span id="vzDfVal">1,5</span> m</b></label>
+              <input type="range" id="vzDf" min="0.3" max="6" step="0.1" value="1.5"></div>
+            <div class="field"><label>Sudut geser φ <b><span id="vzPhiVal">30</span>°</b></label>
+              <input type="range" id="vzPhi" min="0" max="45" step="1" value="30"></div>
+          </div>
+          <div class="vizBtns">
+            <button class="vbtn on" id="vzPlay"><i class="fa-solid fa-pause"></i> Animasi</button>
+            <button class="vbtn on" id="vzFail"><i class="fa-solid fa-burst"></i> Zona Keruntuhan</button>
+            <button class="vbtn on" id="vzPart"><i class="fa-solid fa-braille"></i> Partikel Tanah</button>
+            <button class="vbtn" id="vzReset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          </div>
+          <div class="note" style="margin-top:9px">Baji aktif menekan tanah ke bawah, kipas radial meneruskan tegangan geser, dan baji pasif mendorong tanah ke samping hingga permukaan naik (heave). Sudut baji mengikuti 45° + φ/2.</div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fa-solid fa-layer-group"></i> Kontribusi Tiga Komponen q<sub>u</sub></h3>
+          <div id="vizTerms"></div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3><i class="fa-solid fa-circle-nodes"></i> Bulb Tekanan Tanah (Boussinesq)</h3>
+          <div class="vizStage" style="height:clamp(260px,38vh,380px)">
+            <canvas id="vizBulb"></canvas>
+            <div class="vizHud"><span id="vbInfo">Δσ/q<sub>0</sub> isobar 10–50%</span><span class="hi">Z = <span id="vbDepth">2,0</span>B</span></div>
+          </div>
+          <div class="vizCtl" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label>Kedalaman tinjau <b><span id="vbZVal">2,0</span> B</b></label>
+              <input type="range" id="vbZ" min="0.25" max="4" step="0.25" value="2"></div>
+            <div class="field"><label>Beban terpakai q<sub>0</sub> <b>kPa</b></label>
+              <input type="number" id="vbQ" step="10" value="200"></div>
+          </div>
+          <div class="note" style="margin-top:8px">Isobar menunjukkan rasio tegangan tambahan Δσ terhadap tekanan kontak q<sub>0</sub>. Pada kedalaman 2B, pengaruh beban pondasi umumnya tinggal 10–20% sehingga zona kompresibel dibatasi sampai kedalaman tersebut.</div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fa-solid fa-forward-step"></i> Animasi Langkah Hitung</h3>
+          <div class="stepList" id="vizSteps"></div>
+          <div class="btnRow" style="margin-top:10px">
+            <button class="vbtn on" id="vzStepPlay"><i class="fa-solid fa-play"></i> Jalankan</button>
+            <button class="vbtn" data-goto="daya"><i class="fa-solid fa-table-list"></i> Tabel Lengkap</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PETA GEOTEKNIK ============ -->
+    <section class="panel" id="p-peta">
+      <div class="hero" style="background:linear-gradient(120deg,rgba(16,185,129,.13),rgba(34,211,238,.08) 55%,transparent);border-color:rgba(16,185,129,.3)">
+        <h1 style="font-size:clamp(17px,2.5vw,24px)">Peta <span>Zona Daya Dukung Indonesia</span></h1>
+        <p>Sebaran nilai tipikal daya dukung izin (q<sub>a</sub>) pada 29 wilayah serta 8 titik proyek referensi. Klik penanda untuk risalah, saran, dan kesimpulan lokasi, lalu terapkan parameternya ke mesin analisis.</p>
+        <div class="chips"><span class="tag">29 WILAYAH</span><span class="tag">8 TITIK PROYEK</span><span class="tag">SATELIT · TOPO · JALAN</span><span class="tag">KLIK → TERAPKAN</span></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="geoTools">
+          <div class="geoSug">
+            <input type="text" id="geoSearch" placeholder="Cari kota / wilayah / jenis tanah…" autocomplete="off">
+            <div class="geoSugList" id="geoSugList"></div>
+          </div>
+          <button class="vbtn on" data-geolayer="zona"><i class="fa-solid fa-circle-dot"></i> Zona q<sub>a</sub></button>
+          <button class="vbtn on" data-geolayer="proyek"><i class="fa-solid fa-flag"></i> Titik Proyek</button>
+          <button class="vbtn" data-geobase="topo"><i class="fa-solid fa-mountain-sun"></i> Topografi</button>
+          <button class="vbtn" data-geobase="sat"><i class="fa-solid fa-satellite"></i> Satelit</button>
+          <button class="vbtn" data-geobase="street"><i class="fa-solid fa-road"></i> Jalan</button>
+          <button class="vbtn" id="geoFit"><i class="fa-solid fa-expand"></i> Indonesia</button>
+        </div>
+      </div>
+
+      <div class="grid g23">
+        <div class="card" style="padding:0">
+          <div id="petaWrap">
+            <div id="geoMap"></div>
+            <div class="geoLegend">
+              <b>q<sub>a</sub> tipikal (kPa)</b>
+              <div class="lgRow"><span class="dot" style="background:#f43f5e"></span> &lt; 100 — lunak / gambut</div>
+              <div class="lgRow"><span class="dot" style="background:#f59e0b"></span> 100–175 — sedang</div>
+              <div class="lgRow"><span class="dot" style="background:#22d3ee"></span> 175–260 — kaku / padat</div>
+              <div class="lgRow"><span class="dot" style="background:#10b981"></span> &gt; 260 — sangat padat / batuan</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <h3><i class="fa-solid fa-chart-pie"></i> Ringkasan Sebaran</h3>
+            <div class="geoStat">
+              <div><span>Jumlah wilayah</span><b id="gsCount">—</b></div>
+              <div><span>q<sub>a</sub> rata-rata</span><b id="gsAvg">—</b></div>
+              <div><span>Terendah</span><b id="gsMin" style="color:#fb7185">—</b></div>
+              <div><span>Tertinggi</span><b id="gsMax" style="color:#6ee7b7">—</b></div>
+            </div>
+            <div id="gsBars"></div>
+          </div>
+          <div class="card">
+            <h3><i class="fa-solid fa-list-ul"></i> Daftar Wilayah</h3>
+            <div class="geoList" id="geoList"></div>
+            <div class="geoNote">Nilai q<sub>a</sub> adalah tipikal indikatif untuk perencanaan awal, bukan hasil penyelidikan aktual. Selalu verifikasi dengan SPT / CPT / uji beban setempat.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ RISALAH ============ -->
     <section class="panel" id="p-risalah">
       <div class="card">
@@ -843,7 +1089,7 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
       <a href="https://newbieonline7.blogspot.com" target="_blank" rel="noopener"><i class="fa-solid fa-blog"></i> Blog</a> ·
       <a href="https://wa.me/6282231036047" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
     </div>
-    <div class="hint">Daya Dukung Tanah PRO · Referensi: Terzaghi (1943), Meyerhof (1963), Hansen (1970), Vesic (1973), IS 6403, SNI 8460:2017</div>
+    <div class="hint">Daya Dukung Tanah PRO v2.0 · Simulasi keruntuhan &amp; peta zona geoteknik · Referensi: Terzaghi (1943), Meyerhof (1963), Hansen (1970), Vesic (1973), Boussinesq (1885), IS 6403, IS 8009, SNI 8460:2017</div>
   </footer>
 </div>
 
@@ -884,11 +1130,13 @@ footer .hint{font-size:10px;color:var(--muted);opacity:.75;margin-top:5px}
         <li>Isi geometri pondasi: bentuk, lebar B, panjang L, kedalaman D<sub>f</sub>, beban kolom P, dan faktor aman.</li>
         <li>Buka tab <strong>Daya Dukung</strong> untuk melihat perbandingan empat metode beserta langkah hitung rinci.</li>
         <li>Buka tab <strong>Penurunan</strong> untuk memeriksa penurunan elastis dan konsolidasi terhadap batas izin.</li>
+        <li>Buka <strong>Simulasi Visual</strong> untuk melihat zona keruntuhan geser, kontribusi tiap suku rumus, bulb tekanan Boussinesq, dan animasi langkah hitung.</li>
+        <li>Buka <strong>Peta Geoteknik</strong>, klik penanda wilayah untuk risalah, saran dan kesimpulan lokasi, lalu tekan <strong>Terapkan ke Analisis</strong>.</li>
         <li>Baca <strong>Risalah Teknis</strong> untuk narasi teknis otomatis, lalu unduh laporan Word pada tab <strong>Laporan</strong>.</li>
       </ul>
       <h4>Pintasan papan tombol</h4>
       <ul>
-        <li><strong>1–8</strong> pindah tab · <strong>C</strong> buka chatbot · <strong>A</strong> My Aplikasi · <strong>S</strong> screensaver · <strong>H</strong> bantuan · <strong>V</strong> suara · <strong>G</strong> terjemahan · <strong>T</strong> tema · <strong>Esc</strong> tutup panel</li>
+        <li><strong>1–9</strong> pindah tab · <strong>0</strong> tab terakhir · <strong>C</strong> buka chatbot · <strong>A</strong> My Aplikasi · <strong>S</strong> screensaver · <strong>H</strong> bantuan · <strong>V</strong> suara · <strong>G</strong> terjemahan · <strong>T</strong> tema · <strong>Esc</strong> tutup panel</li>
       </ul>
       <h4>Catatan teknis</h4>
       <p>Hasil hitung bersifat indikatif untuk perencanaan awal. Selalu verifikasi dengan data penyelidikan tanah aktual, uji beban pelat bila diperlukan, dan tinjau penurunan konsolidasi pada tanah lempung lunak.</p>
@@ -1205,6 +1453,8 @@ function startBoot(){
     'Menyiapkan mesin analisis geoteknik...',
     'Memuat faktor daya dukung Nc, Nq, Nγ...',
     'Menyusun model penurunan elastis & konsolidasi...',
+    'Membangun simulasi zona keruntuhan geser...',
+    'Memuat peta zona daya dukung Indonesia...',
     'Menyinkronkan Bumi 3D dan atmosfer...',
     'Mengaktifkan asisten GeoBot...',
     'Siap. Selamat bekerja.'
@@ -1214,7 +1464,7 @@ function startBoot(){
     if(p > 100) p = 100;
     if(bar) bar.style.width = p + '%';
     if(pct) pct.textContent = Math.round(p) + '%';
-    if(msg) msg.textContent = msgs[Math.min(msgs.length-1, Math.floor(p/18))];
+    if(msg) msg.textContent = msgs[Math.min(msgs.length-1, Math.floor(p/13))];
     if(p >= 100){
       clearInterval(iv);
       setTimeout(function(){ if(msg) msg.textContent = 'Siap. Selamat bekerja.'; }, 250);
@@ -2332,7 +2582,7 @@ function wireTools(){
 /* ============================================================
    TAB & NAVIGASI
    ============================================================ */
-var TAB_ORDER = ['dasbor','tanah','daya','turun','grafik','risalah','laporan','alat'];
+var TAB_ORDER = ['dasbor','tanah','daya','turun','grafik','visual','peta','risalah','laporan','alat'];
 function switchTab(name){
   if(TAB_ORDER.indexOf(name) < 0) return;
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-tab') === name); });
@@ -2766,7 +3016,7 @@ function wireChat(){
 
   var quick = document.getElementById('chatQuick');
   if(quick){
-    var qs = ['Daya dukung saya?', 'Muka air tanah', 'Penurunan', 'Terzaghi', 'SPT', 'Faktor aman', 'Likuifaksi', 'SNI 8460'];
+    var qs = ['Daya dukung saya?', 'Peta zona tanah', 'Zona keruntuhan', 'Penurunan', 'Muka air tanah', 'Terzaghi', 'Gambut', 'SPT', 'Faktor aman', 'SNI 8460'];
     quick.innerHTML = qs.map(function(q){ return '<button data-q="'+q+'">'+q+'</button>'; }).join('');
     quick.querySelectorAll('[data-q]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -3115,7 +3365,8 @@ function wireKeys(){
       ssClose();
       return;
     }
-    if(k >= '1' && k <= '8'){ switchTab(TAB_ORDER[parseInt(k,10)-1]); return; }
+    if(k >= '1' && k <= '9'){ switchTab(TAB_ORDER[parseInt(k,10)-1]); return; }
+    if(k === '0'){ switchTab(TAB_ORDER[9]); return; }
     var low = k.toLowerCase();
     if(low === 'c'){ var p = document.getElementById('chatPanel'); if(p){ p.classList.add('on'); var b = document.getElementById('chatBody'); if(b && !b.children.length) chatWelcome(); } }
     if(low === 'a'){ openOv('ovApps'); }
@@ -3196,6 +3447,954 @@ function init(){
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+</script>
+<script id="ddtV2Module">
+/* ============================================================
+   V2.0 — MODUL SIMULASI VISUAL & PETA GEOTEKNIK
+   ============================================================ */
+/* ---------------- util ---------------- */
+function vzFmt(v,d){ return (isFinite(v)? v.toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}) : '—'); }
+function vzSize(cv){
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var w = Math.max(60, cv.clientWidth || 600), h = Math.max(60, cv.clientHeight || 360);
+  if(cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)){
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  }
+  var ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx:ctx, w:w, h:h};
+}
+
+/* ============================================================
+   SIMULASI MEKANISME DAYA DUKUNG
+   ============================================================ */
+var VZ = {anim:true, fail:true, part:true, t:0, raf:null, stepIdx:0, stepTimer:null, stepRun:true};
+
+function vzLabels(){
+  var b = document.getElementById('vzB'), d = document.getElementById('vzDf'), p = document.getElementById('vzPhi');
+  var bv = document.getElementById('vzBVal'), dv = document.getElementById('vzDfVal'), pv = document.getElementById('vzPhiVal');
+  if(b && bv) bv.textContent = vzFmt(parseFloat(b.value),1);
+  if(d && dv) dv.textContent = vzFmt(parseFloat(d.value),1);
+  if(p && pv) pv.textContent = vzFmt(parseFloat(p.value),0);
+}
+var vzRenderTimer = null;
+function vzScheduleRender(){
+  clearTimeout(vzRenderTimer);
+  vzRenderTimer = setTimeout(function(){
+    try{ syncInputs(); }catch(e){}
+    try{ renderAll(); }catch(e){}
+  }, 210);
+}
+function vzApply(){
+  var b = document.getElementById('vzB'), d = document.getElementById('vzDf'), p = document.getElementById('vzPhi');
+  if(b) ST.B = Math.max(0.3, parseFloat(b.value) || ST.B);
+  if(d) ST.Df = Math.max(0, parseFloat(d.value) || ST.Df);
+  if(p) ST.phi = Math.max(0, parseFloat(p.value) || 0);
+  vzLabels();
+  vzScheduleRender();
+}
+function vzSyncFromState(){
+  var b = document.getElementById('vzB'), d = document.getElementById('vzDf'), p = document.getElementById('vzPhi');
+  if(b) b.value = Math.min(6, Math.max(0.6, ST.B));
+  if(d) d.value = Math.min(6, Math.max(0.3, ST.Df));
+  if(p) p.value = Math.min(45, Math.max(0, ST.phi));
+  vzLabels();
+}
+
+/* ---------- gambar potongan pondasi ---------- */
+function drawFooting(ts){
+  var cv = document.getElementById('vizFooting'); if(!cv || !cv.clientWidth) return;
+  var S = vzSize(cv), ctx = S.ctx, w = S.w, h = S.h;
+  var B = ST.B, Df = ST.Df, phi = ST.phi, gwt = ST.gwt;
+  var t = VZ.t;
+  var groundY = h*0.30;
+  var spanD = Math.max(Df + B*1.9, 2.2);
+  var px = Math.min((h - groundY - 26)/spanD, (w*0.30)/B);
+  var cx = w/2, hb = B*px/2, baseY = groundY + Df*px;
+
+  ctx.clearRect(0,0,w,h);
+
+  /* langit / atas */
+  var sky = ctx.createLinearGradient(0,0,0,groundY);
+  sky.addColorStop(0,'rgba(10,30,48,0.9)'); sky.addColorStop(1,'rgba(6,20,34,0.55)');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,w,groundY);
+
+  /* tanah berlapis */
+  var soil = ctx.createLinearGradient(0,groundY,0,h);
+  soil.addColorStop(0,'#4a3620'); soil.addColorStop(0.45,'#3a2a18'); soil.addColorStop(1,'#241a10');
+  ctx.fillStyle = soil; ctx.fillRect(0,groundY,w,h-groundY);
+
+  /* lapisan tipis */
+  ctx.strokeStyle = 'rgba(180,140,90,0.18)'; ctx.lineWidth = 1;
+  for(var li=1; li<=3; li++){
+    var ly = groundY + (h-groundY)*(li/4);
+    ctx.beginPath(); ctx.moveTo(0,ly);
+    for(var x=0; x<=w; x+=18){ ctx.lineTo(x, ly + Math.sin((x/70)+li)*2.2); }
+    ctx.stroke();
+  }
+
+  /* partikel tanah */
+  if(VZ.part){
+    for(var i=0;i<58;i++){
+      var seed = i*12.9898;
+      var pxp = (Math.sin(seed)*43758.5453 % 1 + 1) % 1 * w;
+      var pyp = groundY + ((Math.cos(seed*1.7)*43758.5453 % 1 + 1) % 1) * (h-groundY);
+      var drift = Math.sin(t*0.6 + i)*2.4;
+      var rad = 1 + ((i%3)*0.5);
+      ctx.beginPath();
+      ctx.arc(pxp + drift, pyp, rad, 0, Math.PI*2);
+      ctx.fillStyle = i%4===0 ? 'rgba(251,191,36,0.42)' : 'rgba(214,178,128,0.28)';
+      ctx.fill();
+    }
+  }
+
+  /* muka air tanah */
+  if(gwt > 0.05 && gwt < spanD){
+    var wy = groundY + gwt*px;
+    ctx.beginPath();
+    for(var wx=0; wx<=w; wx+=6){
+      var yy = wy + Math.sin((wx/26) + t*1.6)*2.2;
+      if(wx===0) ctx.moveTo(wx,yy); else ctx.lineTo(wx,yy);
+    }
+    ctx.strokeStyle = 'rgba(34,211,238,0.75)'; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.fillStyle = 'rgba(34,211,238,0.07)';
+    ctx.fillRect(0, wy, w, h-wy);
+    ctx.fillStyle = 'rgba(34,211,238,0.9)';
+    ctx.font = '9px "JetBrains Mono",monospace';
+    ctx.fillText('MAT · ' + vzFmt(gwt,1) + ' m', 8, wy-5);
+    for(var k=0;k<8;k++){
+      var tx = 14 + k*((w-28)/7);
+      ctx.beginPath(); ctx.moveTo(tx, wy+3); ctx.lineTo(tx+4, wy+9); ctx.lineTo(tx+8, wy+3); ctx.closePath();
+      ctx.fillStyle = 'rgba(34,211,238,0.22)'; ctx.fill();
+    }
+  }
+
+  /* zona keruntuhan */
+  if(VZ.fail){
+    var al = (45 + phi/2) * Math.PI/180;
+    var z1 = Math.min(hb*Math.tan(al), (h - baseY) * 0.92);
+    var xOut = hb*(1.35 + 0.85*Math.cos(phi*Math.PI/180));
+    var ySurf = groundY;
+
+    [1,-1].forEach(function(sd){
+      /* zona II : kipas radial (bezier menuju permukaan) */
+      var x0 = cx + sd*hb, x1 = cx + sd*(hb + xOut);
+      ctx.beginPath();
+      ctx.moveTo(x0, baseY);
+      ctx.bezierCurveTo(cx + sd*(hb + xOut*0.42), baseY + z1*0.52,
+                        cx + sd*(hb + xOut*0.88), ySurf + (baseY-ySurf)*0.42,
+                        x1, ySurf);
+      ctx.lineTo(x0, baseY);
+      var gz = ctx.createLinearGradient(cx, baseY, cx + sd*(hb+xOut), ySurf);
+      gz.addColorStop(0,'rgba(244,63,94,0.40)');
+      gz.addColorStop(1,'rgba(244,63,94,0.10)');
+      ctx.fillStyle = gz; ctx.fill();
+
+      /* garis keruntuhan animasi */
+      ctx.beginPath();
+      ctx.moveTo(x0, baseY);
+      ctx.bezierCurveTo(cx + sd*(hb + xOut*0.42), baseY + z1*0.52,
+                        cx + sd*(hb + xOut*0.88), ySurf + (baseY-ySurf)*0.42,
+                        x1, ySurf);
+      ctx.strokeStyle = 'rgba(255,150,170,1)'; ctx.lineWidth = 2.4;
+      ctx.shadowColor = 'rgba(244,63,94,0.9)'; ctx.shadowBlur = 8;
+      ctx.setLineDash([9,7]); ctx.lineDashOffset = -t*36; ctx.stroke();
+      ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+      /* garis kipas */
+      for(var f=1; f<=5; f++){
+        var tt = f/6;
+        var mt = 1-tt;
+        var bx = mt*mt*mt*x0 + 3*mt*mt*tt*(cx + sd*(hb + xOut*0.42)) + 3*mt*tt*tt*(cx + sd*(hb + xOut*0.88)) + tt*tt*tt*x1;
+        var by = mt*mt*mt*baseY + 3*mt*mt*tt*(baseY + z1*0.52) + 3*mt*tt*tt*(ySurf + (baseY-ySurf)*0.42) + tt*tt*tt*ySurf;
+        ctx.beginPath(); ctx.moveTo(x0, baseY); ctx.lineTo(bx, by);
+        ctx.strokeStyle = 'rgba(251,191,36,' + (0.30 - f*0.03) + ')'; ctx.lineWidth = 1; ctx.stroke();
+      }
+
+      /* zona III : baji pasif */
+      ctx.beginPath();
+      ctx.moveTo(x1, ySurf);
+      ctx.lineTo(cx + sd*(hb + xOut + hb*0.72), ySurf);
+      ctx.lineTo(cx + sd*(hb + xOut*0.72), ySurf + (baseY-ySurf)*0.62);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(167,139,250,0.32)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(196,181,253,0.8)'; ctx.lineWidth = 1.4; ctx.stroke();
+
+      /* panah heave */
+      var hx = cx + sd*(hb + xOut*0.5);
+      for(var a=0;a<3;a++){
+        var ay = ySurf - 8 - a*7 - (Math.sin(t*2.2 + a)*3);
+        ctx.beginPath(); ctx.moveTo(hx + (a-1)*10, ay+6); ctx.lineTo(hx + (a-1)*10, ay);
+        ctx.strokeStyle = 'rgba(251,191,36,0.75)'; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(hx + (a-1)*10 - 3, ay+3); ctx.lineTo(hx + (a-1)*10, ay); ctx.lineTo(hx + (a-1)*10 + 3, ay+3);
+        ctx.stroke();
+      }
+    });
+
+    /* zona I : baji aktif */
+    ctx.beginPath();
+    ctx.moveTo(cx-hb, baseY); ctx.lineTo(cx+hb, baseY); ctx.lineTo(cx, baseY+z1); ctx.closePath();
+    var g1 = ctx.createLinearGradient(cx, baseY, cx, baseY+z1);
+    g1.addColorStop(0,'rgba(251,191,36,0.72)'); g1.addColorStop(1,'rgba(245,158,11,0.26)');
+    ctx.fillStyle = g1; ctx.fill();
+    ctx.strokeStyle = 'rgba(251,191,36,0.95)'; ctx.lineWidth = 1.6; ctx.stroke();
+
+    /* label zona */
+    ctx.font = '9.5px "JetBrains Mono",monospace';
+    ctx.fillStyle = 'rgba(253,224,71,0.95)';
+    ctx.fillText('I · baji aktif', cx - 26, baseY + z1*0.55);
+    ctx.fillStyle = 'rgba(253,164,175,0.95)';
+    ctx.fillText('II · radial', cx + hb + 12, baseY - 10);
+    ctx.fillStyle = 'rgba(196,181,253,0.95)';
+    ctx.fillText('III · pasif', cx + hb + xOut*0.62, ySurf - 16);
+  }
+
+  /* kolom + telapak */
+  var ftH = Math.max(9, 0.35*px);
+  var colW = Math.max(16, 2*hb*0.55);
+  var colTop = Math.max(14, groundY - 0.95*px);
+  var gc = ctx.createLinearGradient(cx-colW/2, 0, cx+colW/2, 0);
+  gc.addColorStop(0,'#8fa6bd'); gc.addColorStop(0.35,'#e2e8f0'); gc.addColorStop(1,'#7c8fa3');
+  ctx.fillStyle = gc;
+  ctx.fillRect(cx-colW/2, colTop, colW, (baseY-ftH) - colTop);
+  ctx.fillRect(cx-hb, baseY-ftH, 2*hb, ftH);
+  ctx.strokeStyle = 'rgba(15,23,42,0.85)'; ctx.lineWidth = 1;
+  ctx.strokeRect(cx-hb, baseY-ftH, 2*hb, ftH);
+  ctx.strokeRect(cx-colW/2, colTop, colW, (baseY-ftH)-colTop);
+  /* arsir beton */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx-hb, baseY-ftH, 2*hb, ftH); ctx.clip();
+  ctx.strokeStyle = 'rgba(71,85,105,0.5)'; ctx.lineWidth = 1;
+  for(var hh=-ftH; hh<2*hb; hh+=6){
+    ctx.beginPath(); ctx.moveTo(cx-hb+hh, baseY); ctx.lineTo(cx-hb+hh+ftH, baseY-ftH); ctx.stroke();
+  }
+  ctx.restore();
+
+  /* beban bergerak */
+  var topY = Math.max(10, colTop - 4);
+  for(var q=0;q<3;q++){
+    var off = (Math.sin(t*2.4 + q*1.1)*0.5 + 0.5) * 8;
+    var ax = cx + (q-1)*(colW*0.42);
+    ctx.beginPath(); ctx.moveTo(ax, topY - 16 + off); ctx.lineTo(ax, topY - 4 + off);
+    ctx.strokeStyle = 'rgba(251,191,36,0.95)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax-4, topY-8+off); ctx.lineTo(ax, topY-3+off); ctx.lineTo(ax+4, topY-8+off);
+    ctx.fillStyle = 'rgba(251,191,36,0.95)'; ctx.fill();
+  }
+  ctx.font = '9.5px "JetBrains Mono",monospace';
+  ctx.fillStyle = 'rgba(251,191,36,0.95)';
+  ctx.fillText('P', cx + colW*0.62, topY - 12);
+
+  /* dimensi B */
+  ctx.strokeStyle = 'rgba(147,168,191,0.85)'; ctx.lineWidth = 1;
+  var dimY = baseY + 16;
+  ctx.beginPath(); ctx.moveTo(cx-hb, dimY); ctx.lineTo(cx+hb, dimY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-hb, dimY-4); ctx.lineTo(cx-hb, dimY+4);
+  ctx.moveTo(cx+hb, dimY-4); ctx.lineTo(cx+hb, dimY+4); ctx.stroke();
+  ctx.fillStyle = 'rgba(226,232,240,0.95)';
+  ctx.fillText('B = ' + vzFmt(B,2) + ' m', cx - 22, dimY + 15);
+
+  /* dimensi Df */
+  var dx = Math.max(16, cx - hb - 26);
+  ctx.beginPath(); ctx.moveTo(dx, groundY); ctx.lineTo(dx, baseY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(dx-4, groundY); ctx.lineTo(dx+4, groundY);
+  ctx.moveTo(dx-4, baseY); ctx.lineTo(dx+4, baseY); ctx.stroke();
+  ctx.save();
+  ctx.translate(dx - 6, (groundY+baseY)/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = 'rgba(226,232,240,0.95)';
+  ctx.textAlign = 'center';
+  ctx.fillText('Df = ' + vzFmt(Df,2) + ' m', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'left';
+
+  /* permukaan tanah */
+  ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY);
+  ctx.strokeStyle = 'rgba(251,191,36,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'rgba(251,191,36,0.9)';
+  ctx.fillText('muka tanah', 8, groundY - 6);
+}
+
+/* ---------- bulb tekanan Boussinesq ---------- */
+var BULB = {key:'', heat:null, contours:null};
+function sigRatio(x, z, b){
+  if(z <= 0.0001) return (Math.abs(x) <= b) ? 1 : 0;
+  var t1 = Math.atan2(x+b, z), t2 = Math.atan2(x-b, z);
+  var a = t1 - t2;
+  return Math.max(0, (a + Math.sin(a)*Math.cos(t1+t2))/Math.PI);
+}
+function bulbCache(B, w, h){
+  var key = B.toFixed(2) + '_' + Math.round(w) + '_' + Math.round(h);
+  if(BULB.key === key) return;
+  BULB.key = key;
+  var b = B/2, xMax = 2.4*B, zMax = 4*B;
+  var NX = 110, NZ = 110;
+  var off = document.createElement('canvas'); off.width = NX; off.height = NZ;
+  var octx = off.getContext('2d');
+  var img = octx.createImageData(NX, NZ);
+  for(var j=0;j<NZ;j++){
+    var z = (j/(NZ-1))*zMax;
+    for(var i=0;i<NX;i++){
+      var x = ((i/(NX-1))*2 - 1)*xMax;
+      var r = sigRatio(x, z, b);
+      var idx = (j*NX + i)*4;
+      var t = Math.min(1, r*1.65);
+      var al = Math.min(1, 0.12 + 1.02*Math.pow(r, 0.45));
+      img.data[idx]   = Math.round(30 + 214*t);
+      img.data[idx+1] = Math.round(205 - 128*t);
+      img.data[idx+2] = Math.round(236 - 180*t);
+      img.data[idx+3] = Math.round(255*al);
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  BULB.heat = off;
+
+  /* kontur isobar */
+  var levels = [0.1, 0.2, 0.3, 0.4, 0.5];
+  BULB.contours = levels.map(function(lv){
+    var pts = [];
+    for(var s=0;s<=48;s++){
+      var xx = ((s/48)*2 - 1)*xMax;
+      var lo = 0.001, hi = zMax;
+      if(sigRatio(xx, lo, b) < lv) continue;
+      if(sigRatio(xx, hi, b) > lv) continue;
+      for(var k=0;k<26;k++){
+        var mid = (lo+hi)/2;
+        if(sigRatio(xx, mid, b) > lv) lo = mid; else hi = mid;
+      }
+      pts.push([xx, (lo+hi)/2]);
+    }
+    return {lv:lv, pts:pts};
+  });
+}
+function drawBulb(ts){
+  var cv = document.getElementById('vizBulb'); if(!cv || !cv.clientWidth) return;
+  var S = vzSize(cv), ctx = S.ctx, w = S.w, h = S.h;
+  var B = ST.B;
+  var padL = 40, padR = 14, padT = 26, padB = 26;
+  var plotW = w - padL - padR, plotH = h - padT - padB;
+  var xMax = 2.4*B, zMax = 4*B;
+  var pxX = plotW/(2*xMax), pxZ = plotH/zMax;
+  var cx = padL + plotW/2, top = padT;
+  var t = VZ.t;
+
+  ctx.clearRect(0,0,w,h);
+  bulbCache(B, w, h);
+
+  /* kotak plot */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(padL, top, plotW, plotH); ctx.clip();
+  var bg = ctx.createLinearGradient(0, top, 0, top+plotH);
+  bg.addColorStop(0,'rgba(10,32,50,0.85)'); bg.addColorStop(1,'rgba(6,18,30,0.95)');
+  ctx.fillStyle = bg; ctx.fillRect(padL, top, plotW, plotH);
+
+  /* heatmap */
+  ctx.globalAlpha = 0.85;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(BULB.heat, padL, top, plotW, plotH);
+  ctx.globalAlpha = 1;
+
+  /* kontur */
+  BULB.contours.forEach(function(c, ci){
+    if(c.pts.length < 2) return;
+    ctx.beginPath();
+    c.pts.forEach(function(p, i){
+      var X = cx + p[0]*pxX, Y = top + p[1]*pxZ;
+      if(i===0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y);
+    });
+    ctx.strokeStyle = ['rgba(224,242,254,0.9)','rgba(253,224,71,0.95)','rgba(251,146,60,0.95)','rgba(248,113,113,0.95)','rgba(255,99,132,1)'][ci];
+    ctx.lineWidth = ci >= 3 ? 2 : 1.5;
+    ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 3;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    var last = c.pts[Math.floor(c.pts.length/2)];
+    if(last){
+      ctx.font = 'bold 9px "JetBrains Mono",monospace';
+      ctx.fillStyle = 'rgba(2,10,18,0.85)';
+      ctx.fillRect(cx + last[0]*pxX - 9, top + last[1]*pxZ - 7, 24, 11);
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.fillText((c.lv*100).toFixed(0)+'%', cx + last[0]*pxX - 7, top + last[1]*pxZ + 2);
+    }
+  });
+
+  /* garis kedalaman tinjau */
+  var zr = parseFloat((document.getElementById('vbZ')||{}).value || 2);
+  var zy = top + Math.min(zMax, zr*B)*pxZ;
+  ctx.beginPath(); ctx.moveTo(padL, zy); ctx.lineTo(padL+plotW, zy);
+  ctx.strokeStyle = 'rgba(34,211,238,0.9)'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([6,5]); ctx.lineDashOffset = -t*22; ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(34,211,238,0.95)';
+  ctx.font = '9px "JetBrains Mono",monospace';
+  ctx.fillText('z = ' + vzFmt(zr,2) + 'B', padL + 5, zy - 4);
+
+  /* gelombang tegangan turun */
+  var wave = ((t*0.32) % 1) * plotH;
+  var wg = ctx.createLinearGradient(0, top+wave-24, 0, top+wave+24);
+  wg.addColorStop(0,'rgba(34,211,238,0)'); wg.addColorStop(0.5,'rgba(34,211,238,0.16)'); wg.addColorStop(1,'rgba(34,211,238,0)');
+  ctx.fillStyle = wg; ctx.fillRect(padL, top+wave-24, plotW, 48);
+  ctx.restore();
+
+  /* pondasi di atas plot */
+  var fw = Math.max(18, B*pxX);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(cx - fw/2, top-8, fw, 8);
+  ctx.strokeStyle = 'rgba(15,23,42,0.8)'; ctx.lineWidth = 1;
+  ctx.strokeRect(cx - fw/2, top-8, fw, 8);
+  ctx.fillStyle = 'rgba(251,191,36,0.95)';
+  ctx.font = '9px "JetBrains Mono",monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('q₀', cx, top-11);
+  ctx.textAlign = 'left';
+
+  /* sumbu */
+  ctx.strokeStyle = 'rgba(147,168,191,0.6)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, top+plotH); ctx.lineTo(padL+plotW, top+plotH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padL, top); ctx.lineTo(padL, top+plotH); ctx.stroke();
+  ctx.fillStyle = 'rgba(147,168,191,0.95)';
+  ctx.font = '8.5px "JetBrains Mono",monospace';
+  ctx.fillText('0', padL-3, top+plotH+11);
+  ctx.fillText((2*B).toFixed(1)+'B', padL+plotW-16, top+plotH+11);
+  ctx.fillText('0', padL-14, top+6);
+  ctx.fillText('4B', padL-18, top+plotH);
+  ctx.save(); ctx.translate(11, top+plotH/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.fillText('kedalaman z', 0, 0); ctx.restore(); ctx.textAlign='left';
+
+  /* Δσ pada titik tinjau */
+  var q0 = parseFloat((document.getElementById('vbQ')||{}).value || 200);
+  var dsv = sigRatio(0, Math.min(4, Math.max(0.05, zr))*B, B/2) * q0;
+  var el = document.getElementById('vbDepth'); if(el) el.textContent = vzFmt(zr,2);
+  var info = document.getElementById('vbInfo');
+  if(info) info.innerHTML = 'Δσ pusat = <b>' + vzFmt(dsv,0) + ' kPa</b> · ' + vzFmt(dsv/q0*100,0) + '% q₀';
+}
+
+/* ---------- kartu kontribusi ---------- */
+function vzTerms(){
+  var box = document.getElementById('vizTerms'); if(!box) return;
+  var R; try{ R = computeAll(); }catch(e){ return; }
+  var c = R.main, tm = c.terms;
+  var t1 = tm.cNc || 0, t2 = tm.qNq || 0, t3 = tm.gBNg || 0;
+  var tot = Math.max(t1+t2+t3, 0.001);
+  var rows = [
+    {n:'Kohesi · cN<sub>c</sub>', v:t1, cls:'', note:'Kekuatan tarik antar butir. Menentukan pada lempung (φ ≈ 0).'},
+    {n:'Kedalaman · qN<sub>q</sub>', v:t2, cls:'b2', note:'Tekanan overburden γD<sub>f</sub> di atas dasar pondasi.'},
+    {n:'Lebar · 0,5γBN<sub>γ</sub>', v:t3, cls:'b3', note:'Kontribusi gesekan yang tumbuh dengan lebar pondasi B.'}
+  ];
+  box.innerHTML = rows.map(function(r){
+    var pct = r.v/tot*100;
+    return '<div class="termRow"><div class="th"><span>'+r.n+'</span><b>'+vzFmt(r.v,1)+' kN/m²</b></div>'+
+      '<div class="termBar '+r.cls+'"><span data-w="'+pct.toFixed(1)+'"></span></div>'+
+      '<div class="termNote">'+vzFmt(pct,1)+'% dari q<sub>u</sub> · '+r.note+'</div></div>';
+  }).join('') +
+  '<div class="termTotal"><span>q<sub>u</sub> total (' + c.method + ')</span><b>'+vzFmt(c.qu,1)+' kN/m²</b></div>' +
+  '<div class="termTotal" style="background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.3)">' +
+    '<span>q<sub>a</sub> izin (menentukan)</span><b style="color:#67e8f9">'+vzFmt(R.qaGross,1)+' kN/m²</b></div>' +
+  '<div class="note" style="margin-top:9px">Kendali: <b>'+(R.governing==='penurunan'?'penurunan':'kapasitas daya dukung')+
+    '</b>. '+(R.governing==='penurunan'?'Perlebar pondasi tidak selalu menambah q<sub>a</sub> karena penurunan ikut naik.':'Kapasitas masih menentukan; penurunan relatif aman.')+'</div>';
+  setTimeout(function(){
+    box.querySelectorAll('.termBar span').forEach(function(s){ s.style.width = s.getAttribute('data-w') + '%'; });
+  }, 40);
+}
+
+/* ---------- langkah hitung animasi ---------- */
+function vzSteps(){
+  var box = document.getElementById('vizSteps'); if(!box) return;
+  var R; try{ R = computeAll(); }catch(e){ return; }
+  var m = R.main, w = R.w, stl = R.stl;
+  var f = m.factors, tm = m.terms;
+  var shapeTxt = {memanjang:'menerus',persegi:'persegi',lingkaran:'lingkaran',persegipanjang:'persegi panjang'}[ST.shape] || ST.shape;
+  var steps = [
+    {t:'1 · Kapasitas ultimit q_u',
+     fx:'q<sub>u</sub> = cN<sub>c</sub> + γD<sub>f</sub>N<sub>q</sub> + 0,5γBN<sub>γ</sub><br>= '+vzFmt(tm.cNc||0,1)+' + '+vzFmt(tm.qNq||0,1)+' + '+vzFmt(tm.gBNg||0,1),
+     r:'q_u = '+vzFmt(m.qu,1)+' kN/m²'},
+    {t:'2 · Ultimit netto',
+     fx:'q<sub>nu</sub> = q<sub>u</sub> − γD<sub>f</sub> = '+vzFmt(m.qu,1)+' − '+vzFmt(w.q,1),
+     r:'q_nu = '+vzFmt(m.qnu,1)+' kN/m²'},
+    {t:'3 · Aman netto (FOS '+vzFmt(ST.fos,1)+')',
+     fx:'q<sub>ns</sub> = q<sub>nu</sub> / FOS = '+vzFmt(m.qnu,1)+' / '+vzFmt(ST.fos,1),
+     r:'q_ns = '+vzFmt(m.qns,1)+' kN/m²'},
+    {t:'4 · Aman bruto & izin',
+     fx:'q<sub>gs</sub> = q<sub>ns</sub> + γD<sub>f</sub> = '+vzFmt(m.qgs,1)+' · penurunan '+vzFmt(stl.St,1)+' mm',
+     r:'q_a = '+vzFmt(R.qaGross,1)+' kN/m²'}
+  ];
+  box.innerHTML = steps.map(function(s,i){
+    return '<div class="stepCard'+(i===VZ.stepIdx?' on':'')+'" data-step="'+i+'">'+
+      '<div class="sn"></div><h4>'+s.t+'</h4><div class="fx">'+s.fx+'</div><div class="rs">'+s.r+'</div>'+
+      '<div class="prog"><i></i></div></div>';
+  }).join('') + '<div class="note" style="margin-top:8px">Bentuk pondasi: <b>'+shapeTxt+'</b> · N<sub>c</sub> '+vzFmt(f.Nc,1)+' · N<sub>q</sub> '+vzFmt(f.Nq,1)+' · N<sub>γ</sub> '+vzFmt(f.Ng,1)+'</div>';
+  box.querySelectorAll('[data-step]').forEach(function(el){
+    el.addEventListener('click', function(){
+      VZ.stepIdx = parseInt(el.getAttribute('data-step'),10);
+      VZ.stepRun = false;
+      vzSteps();
+    });
+  });
+  vzStepTick();
+}
+function vzStepTick(){
+  var cards = document.querySelectorAll('#vizSteps .stepCard');
+  if(!cards.length) return;
+  cards.forEach(function(c,i){
+    c.classList.toggle('on', i === VZ.stepIdx);
+    var bar = c.querySelector('.prog i');
+    if(bar) bar.style.width = (i === VZ.stepIdx ? '100%' : (i < VZ.stepIdx ? '100%' : '0%'));
+    if(bar){
+      bar.style.transition = (i === VZ.stepIdx && VZ.stepRun) ? 'width 2.6s linear' : 'width .25s';
+      if(i === VZ.stepIdx && VZ.stepRun){ bar.style.width = '0%'; setTimeout(function(){ bar.style.width = '100%'; }, 30); }
+    }
+  });
+}
+function vzStepStart(){
+  clearInterval(VZ.stepTimer);
+  VZ.stepTimer = setInterval(function(){
+    if(!VZ.stepRun) return;
+    var panel = document.getElementById('p-visual');
+    if(!panel || !panel.classList.contains('active')) return;
+    VZ.stepIdx = (VZ.stepIdx + 1) % 4;
+    vzStepTick();
+  }, 2800);
+}
+
+/* ---------- loop utama ---------- */
+function vzLoop(ts){
+  VZ.raf = requestAnimationFrame(vzLoop);
+  if(document.hidden) return;
+  var panel = document.getElementById('p-visual');
+  if(!panel || !panel.classList.contains('active')) return;
+  if(VZ.anim) VZ.t = ts/1000;
+  try{ drawFooting(ts); }catch(e){}
+  try{ drawBulb(ts); }catch(e){}
+}
+function vzRefresh(){
+  vzSyncFromState();
+  vzTerms();
+  vzSteps();
+  try{
+    var R = computeAll();
+    var a = document.getElementById('vzQu'), b = document.getElementById('vzQa');
+    if(a) a.innerHTML = 'q<sub>u</sub> ' + vzFmt(R.main.qu,0) + ' kPa';
+    if(b) b.innerHTML = 'q<sub>a</sub> ' + vzFmt(R.qaGross,0) + ' kPa';
+  }catch(e){}
+}
+function vzWire(){
+  ['vzB','vzDf','vzPhi'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('input', vzApply);
+  });
+  var play = document.getElementById('vzPlay');
+  if(play) play.addEventListener('click', function(){
+    VZ.anim = !VZ.anim;
+    play.classList.toggle('on', VZ.anim);
+    play.innerHTML = '<i class="fa-solid fa-' + (VZ.anim?'pause':'play') + '"></i> Animasi';
+  });
+  var fail = document.getElementById('vzFail');
+  if(fail) fail.addEventListener('click', function(){
+    VZ.fail = !VZ.fail;
+    fail.classList.toggle('on', VZ.fail);
+    var m = document.getElementById('vzMode');
+    if(m) m.textContent = VZ.fail ? 'MODE: KERUNTUHAN' : 'MODE: ELASTIS';
+  });
+  var part = document.getElementById('vzPart');
+  if(part) part.addEventListener('click', function(){
+    VZ.part = !VZ.part; part.classList.toggle('on', VZ.part);
+  });
+  var rst = document.getElementById('vzReset');
+  if(rst) rst.addEventListener('click', function(){
+    ST.B = 2; ST.Df = 1.5; ST.phi = 30;
+    vzSyncFromState(); vzApply();
+    try{ toast('Simulasi dikembalikan ke contoh infografis'); }catch(e){}
+  });
+  var zsl = document.getElementById('vbZ');
+  if(zsl) zsl.addEventListener('input', function(){
+    var v = document.getElementById('vbZVal'); if(v) v.textContent = vzFmt(parseFloat(zsl.value),2);
+  });
+  var sp = document.getElementById('vzStepPlay');
+  if(sp) sp.addEventListener('click', function(){
+    VZ.stepRun = !VZ.stepRun;
+    sp.classList.toggle('on', VZ.stepRun);
+    sp.innerHTML = '<i class="fa-solid fa-' + (VZ.stepRun?'pause':'play') + '"></i> ' + (VZ.stepRun?'Jalankan':'Lanjutkan');
+    if(VZ.stepRun) vzStepTick();
+  });
+  vzStepStart();
+}
+
+/* ============================================================
+   PETA GEOTEKNIK INDONESIA
+   ============================================================ */
+var GEO = {ready:false, map:null, layers:{}, data:[], proj:[], activeBase:'topo'};
+var GEO_DATA = [
+ {id:'jkt', n:'Jakarta', p:'DKI Jakarta', lat:-6.2088, lon:106.8456, soil:'Lempung lunak', c:14, phi:0, g:15, spt:5, note:'Endapan aluvial pesisir, muka air tanah dangkal 1–2 m.'},
+ {id:'bks', n:'Bekasi', p:'Jawa Barat', lat:-6.2383, lon:106.9756, soil:'Lempung kelanauan', c:20, phi:0, g:16, spt:8, note:'Lempung konsistensi sedang dengan sisipan lanau.'},
+ {id:'tng', n:'Tangerang', p:'Banten', lat:-6.1783, lon:106.6319, soil:'Lempung sedang', c:28, phi:0, g:17, spt:12, note:'Lempung kaku dangkal, SPT meningkat pada kedalaman 6 m.'},
+ {id:'bdg', n:'Bandung', p:'Jawa Barat', lat:-6.9175, lon:107.6191, soil:'Tuf lempungan kaku', c:45, phi:5, g:17, spt:18, note:'Endapan vulkanik Cekungan Bandung, cukup kaku.'},
+ {id:'smg', n:'Semarang', p:'Jawa Tengah', lat:-6.9667, lon:110.4167, soil:'Lempung lunak pesisir', c:12, phi:0, g:15, spt:4, note:'Tanah lunak setebal 10–20 m, penurunan konsolidasi besar.'},
+ {id:'sby', n:'Surabaya', p:'Jawa Timur', lat:-7.2575, lon:112.7521, soil:'Lempung kaku berpasir', c:40, phi:8, g:18, spt:15, note:'Lempung kaku dengan sisipan pasir padat.'},
+ {id:'yog', n:'Yogyakarta', p:'DI Yogyakarta', lat:-7.7956, lon:110.3695, soil:'Pasir lanauan Merapi', c:10, phi:30, g:17, spt:22, note:'Endapan piroklastik, mudah terdrainase, perlu perhatian likuifaksi.'},
+ {id:'slo', n:'Surakarta', p:'Jawa Tengah', lat:-7.5755, lon:110.8243, soil:'Lanau lempungan', c:25, phi:8, g:17, spt:10, note:'Lempung lanauan dengan muka air tanah 2–3 m.'},
+ {id:'mlg', n:'Malang', p:'Jawa Timur', lat:-7.9666, lon:112.6326, soil:'Tuf pasiran', c:15, phi:26, g:16, spt:18, note:'Tuf vulkanik padat, kohesi semu dari sementasi ringan.'},
+ {id:'dps', n:'Denpasar', p:'Bali', lat:-8.6705, lon:115.2126, soil:'Pasir kerikilan', c:5, phi:34, g:18, spt:28, note:'Endapan aluvial kerikilan, daya dukung baik.'},
+ {id:'mtr', n:'Mataram', p:'Nusa Tenggara Barat', lat:-8.5833, lon:116.1167, soil:'Pasir lanauan', c:8, phi:30, g:17, spt:20, note:'Endapan vulkanik Lombok, muka air tanah 4–6 m.'},
+ {id:'kpg', n:'Kupang', p:'Nusa Tenggara Timur', lat:-10.1772, lon:123.6070, soil:'Lempung kaku', c:50, phi:0, g:18, spt:20, note:'Lempung merah residual, kaku hingga sangat kaku.'},
+ {id:'ptk', n:'Pontianak', p:'Kalimantan Barat', lat:-0.0263, lon:109.3425, soil:'Gambut / lempung lunak', c:8, phi:0, g:14, spt:3, note:'Gambut dengan lempung lunak, kompresibilitas sangat tinggi.'},
+ {id:'bjm', n:'Banjarmasin', p:'Kalimantan Selatan', lat:-3.3186, lon:114.5944, soil:'Gambut tebal', c:7, phi:0, g:13.5, spt:2, note:'Gambut tebal, disarankan perbaikan tanah atau pondasi tiang.'},
+ {id:'plk', n:'Palangka Raya', p:'Kalimantan Tengah', lat:-2.2089, lon:113.9169, soil:'Gambut berserat', c:10, phi:0, g:14, spt:3, note:'Gambut berserat dengan lapisan lanau tipis.'},
+ {id:'bpp', n:'Balikpapan', p:'Kalimantan Timur', lat:-1.2379, lon:116.8529, soil:'Pasir padat', c:0, phi:36, g:19, spt:35, note:'Perbukitan tersier, pasir padat hingga batuan lunak.'},
+ {id:'smd', n:'Samarinda', p:'Kalimantan Timur', lat:-0.5022, lon:117.1536, soil:'Lempung kelanauan', c:22, phi:0, g:16, spt:7, note:'Lempung alluvial Sungai Mahakam.'},
+ {id:'ikn', n:'IKN Nusantara', p:'Kalimantan Timur', lat:-0.9700, lon:116.7000, soil:'Lempung pasiran', c:18, phi:12, g:17, spt:12, note:'Lempung pasiran dengan sisipan batubara tipis.'},
+ {id:'mks', n:'Makassar', p:'Sulawesi Selatan', lat:-5.1477, lon:119.4327, soil:'Lempung kaku / pasir', c:35, phi:10, g:18, spt:18, note:'Lempung kaku pesisir dengan lapisan pasir padat.'},
+ {id:'mnd', n:'Manado', p:'Sulawesi Utara', lat:1.4748, lon:124.8421, soil:'Tufa vulkanik', c:30, phi:20, g:17, spt:22, note:'Tufa terlapuk, kohesi semu cukup tinggi.'},
+ {id:'pal', n:'Palu', p:'Sulawesi Tengah', lat:-0.8917, lon:119.8707, soil:'Pasir padat', c:0, phi:38, g:19, spt:40, note:'Endapan sungai pasir padat, area sesar Palu-Koro.'},
+ {id:'mdn', n:'Medan', p:'Sumatera Utara', lat:3.5952, lon:98.6722, soil:'Lempung lunak', c:16, phi:0, g:15, spt:6, note:'Lempung lunak aluvial Deli, tebal 15–25 m.'},
+ {id:'pku', n:'Pekanbaru', p:'Riau', lat:0.5071, lon:101.4478, soil:'Gambut / lempung', c:12, phi:0, g:15, spt:5, note:'Gambut bersisip lempung, muka air tanah dangkal.'},
+ {id:'pdg', n:'Padang', p:'Sumatera Barat', lat:-0.9471, lon:100.4172, soil:'Pasir lanauan pesisir', c:8, phi:28, g:17, spt:14, note:'Pasir lanauan dengan risiko likuifaksi pada gempa kuat.'},
+ {id:'plm', n:'Palembang', p:'Sumatera Selatan', lat:-2.9761, lon:104.7754, soil:'Lempung lunak', c:18, phi:0, g:16, spt:7, note:'Lempung lunak Musi, muka air tanah 1–2 m.'},
+ {id:'lmp', n:'Bandar Lampung', p:'Lampung', lat:-5.4292, lon:105.2610, soil:'Lanau pasiran', c:12, phi:24, g:17, spt:16, note:'Tuf masam dan lanau pasiran.'},
+ {id:'btm', n:'Batam', p:'Kepulauan Riau', lat:1.1301, lon:104.0529, soil:'Pasir padat / granit', c:0, phi:38, g:19, spt:42, note:'Batuan granit terlapuk dengan pasir padat di atasnya.'},
+ {id:'jap', n:'Jayapura', p:'Papua', lat:-2.5916, lon:140.6690, soil:'Lempung kelanauan', c:25, phi:5, g:17, spt:12, note:'Lempung lanauan dengan kemiringan topografi curam.'},
+ {id:'srg', n:'Sorong', p:'Papua Barat Daya', lat:-0.8762, lon:131.2559, soil:'Lempung pasiran', c:20, phi:10, g:17, spt:12, note:'Lempung pasiran pesisir dengan batugamping di bawahnya.'},
+ {id:'amb', n:'Ambon', p:'Maluku', lat:-3.6954, lon:128.1814, soil:'Lempung kaku', c:40, phi:5, g:18, spt:16, note:'Lempung kaku vulkanik, topografi berbukit.'},
+ {id:'tmk', n:'Timika', p:'Papua Tengah', lat:-4.5461, lon:136.8877, soil:'Lempung lanauan', c:22, phi:0, g:16, spt:8, note:'Endapan lanau lempung dataran rendah.'}
+];
+var GEO_PROJ = [
+ {id:'pj1', n:'Bendungan Tailing Tujuh Bukit', t:'Timbunan tailing', lat:-8.55, lon:114.15, soil:'Timbunan tailing pasiran', c:10, phi:28, g:19, spt:25, note:'Stabilitas timbunan dan rembesan menjadi kendali utama.'},
+ {id:'pj2', n:'Pelabuhan Tanjung Priok', t:'Reklamasi & dermaga', lat:-6.10, lon:106.88, soil:'Lempung lunak reklamasi', c:12, phi:0, g:15, spt:4, note:'Perlu perbaikan tanah (PVD + preloading) sebelum pembebanan.'},
+ {id:'pj3', n:'Tol Trans Jawa', t:'Timbunan jalan', lat:-7.15, lon:110.45, soil:'Lempung kelanauan', c:18, phi:2, g:16, spt:7, note:'Penurunan konsolidasi kendali pada segmen tanah lunak.'},
+ {id:'pj4', n:'IKN Nusantara', t:'Kawasan inti pemerintahan', lat:-1.00, lon:116.70, soil:'Lempung pasiran', c:18, phi:12, g:17, spt:12, note:'Variasi tanah tinggi, perlu penyelidikan rapat per zona.'},
+ {id:'pj5', n:'PLTA Cirata', t:'Bendungan urugan', lat:-6.70, lon:107.36, soil:'Tuf / batuan lunak', c:60, phi:25, g:19, spt:50, note:'Fondasi batuan, kendali pada bidang lemah dan rembesan.'},
+ {id:'pj6', n:'SCBD Jakarta', t:'Gedung tinggi', lat:-6.225, lon:106.81, soil:'Lempung lunak dalam', c:14, phi:0, g:15, spt:5, note:'Pondasi tiang bor mencapai lapisan keras di kedalaman 40–60 m.'},
+ {id:'pj7', n:'Bandara Kertajati', t:'Perkerasan bandara', lat:-6.65, lon:108.17, soil:'Lempung lanau', c:20, phi:3, g:16, spt:9, note:'Perbaikan tanah diperlukan untuk batas penurunan perkerasan.'},
+ {id:'pj8', n:'Reklamasi Makassar', t:'Reklamasi pesisir', lat:-5.12, lon:119.40, soil:'Pasir reklamasi', c:5, phi:30, g:18, spt:20, note:'Pasir reklamasi di atas lempung lunak, tinjau penurunan total.'}
+];
+
+function geoCalc(item){
+  var bak = {c:ST.c, phi:ST.phi, gamma:ST.gamma, gammaSat:ST.gammaSat, gwt:ST.gwt, spt:ST.spt,
+    nu:ST.nu, es:ST.es, shape:ST.shape, B:ST.B, L:ST.L, Df:ST.Df, P:ST.P, fos:ST.fos,
+    stLim:ST.stLim, method:ST.method, cc:ST.cc, e0:ST.e0, hc:ST.hc, soilNote:ST.soilNote};
+  ST.c = item.c; ST.phi = item.phi; ST.gamma = item.g; ST.gammaSat = item.g + 1.4;
+  ST.gwt = 99; ST.spt = item.spt; ST.nu = 0.3; ST.es = 0; ST.shape = 'persegi';
+  ST.B = 1.5; ST.L = 1.5; ST.Df = 1.5; ST.fos = 3; ST.method = 'terzaghi';
+  ST.cc = 0.25; ST.e0 = 0.8; ST.hc = 3;
+  var out = {qu:0, qgs:0, qa:0, st:0};
+  try{
+    var cap = capacity('terzaghi');
+    var stl = settlement();
+    out.qu = cap.qu; out.qgs = cap.qgs; out.qa = Math.min(cap.qgs, stl.qStGross); out.st = stl.St;
+  }catch(e){}
+  Object.keys(bak).forEach(function(k){ ST[k] = bak[k]; });
+  return out;
+}
+function geoBand(qa){
+  if(qa < 100) return {c:'#f43f5e', t:'lunak / gambut'};
+  if(qa < 175) return {c:'#f59e0b', t:'sedang'};
+  if(qa < 260) return {c:'#22d3ee', t:'kaku / padat'};
+  return {c:'#10b981', t:'sangat padat'};
+}
+function geoAdvice(it, qa){
+  var band = geoBand(qa);
+  var risalah = it.soil + ' dengan c = ' + it.c + ' kN/m², φ = ' + it.phi + '°, γ = ' + it.g + ' kN/m³, N-SPT ≈ ' + it.spt + '. Untuk pondasi 1,5 × 1,5 m pada D<sub>f</sub> 1,5 m (FOS 3) diperoleh q<sub>u</sub> ≈ ' + vzFmt(it._qu,0) + ' kPa dan q<sub>a</sub> ≈ ' + vzFmt(qa,0) + ' kPa (kategori ' + band.t + ').';
+  var saran = qa < 100
+    ? 'Gunakan pondasi tiang atau perbaikan tanah (PVD, preloading, cerucuk/gelam). Hindari telapak dangkal tanpa perbaikan; batasi timbunan bertahap.'
+    : (qa < 175
+      ? 'Telapak dangkal masih memungkinkan dengan B ≥ 1,5 m. Periksa penurunan konsolidasi dan gunakan FOS ≥ 3, serta pertimbangkan pelat raft bila beban kolom besar.'
+      : (qa < 260
+        ? 'Pondasi telapak dangkal memadai. Optimalkan dimensi terhadap beban kolom dan periksa penurunan elastis; perhatikan muka air tanah.'
+        : 'Daya dukung tinggi. Kendali beralih ke penurunan dan stabilitas lokal; telapak dangkal umumnya efisien, verifikasi dengan uji beban bila beban besar.'));
+  var kesimpulan = 'Untuk ' + it.n + ', q<sub>a</sub> rencana ' + vzFmt(qa,0) + ' kPa (' + vzFmt(qa/9.81,1) + ' t/m²) dapat dipakai sebagai nilai awal perencanaan, wajib dikonfirmasi dengan penyelidikan tanah setempat.';
+  return {risalah:risalah, saran:saran, kesimpulan:kesimpulan};
+}
+function geoPopup(it){
+  var band = geoBand(it._qa);
+  var adv = geoAdvice(it, it._qa);
+  var isProj = !!it.t;
+  return '<div class="geoPop">' +
+    '<div class="gpHead"><b>' + it.n + '</b><span class="gpBadge" style="color:' + band.c + '">q<sub>a</sub> ' + vzFmt(it._qa,0) + '</span></div>' +
+    '<div class="gpSub">' + (isProj ? it.t + ' · ' : (it.p + ' · ')) + it.soil + '</div>' +
+    '<table>' +
+      '<tr><td>Kohesi c</td><td>' + it.c + ' kN/m²</td></tr>' +
+      '<tr><td>Sudut geser φ</td><td>' + it.phi + '°</td></tr>' +
+      '<tr><td>Berat volume γ</td><td>' + it.g + ' kN/m³</td></tr>' +
+      '<tr><td>N-SPT</td><td>' + it.spt + '</td></tr>' +
+      '<tr><td>q<sub>u</sub> (Terzaghi)</td><td>' + vzFmt(it._qu,0) + ' kPa</td></tr>' +
+      '<tr><td>q<sub>a</sub> tipikal</td><td>' + vzFmt(it._qa,0) + ' kPa</td></tr>' +
+    '</table>' +
+    '<div class="gpSec"><b>Risalah teknis</b><p>' + adv.risalah + '</p></div>' +
+    '<div class="gpSec"><b>Saran teknis</b><p>' + adv.saran + '</p></div>' +
+    '<div class="gpSec"><b>Kesimpulan</b><p>' + adv.kesimpulan + '</p></div>' +
+    '<button class="gpBtn" onclick="geoApply(\'' + it.id + '\')">Terapkan ke Analisis</button>' +
+  '</div>';
+}
+window.geoApply = function(id){
+  var it = null;
+  GEO.data.concat(GEO.proj).forEach(function(d){ if(d.id === id) it = d; });
+  if(!it) return;
+  ST.c = it.c; ST.phi = it.phi; ST.gamma = it.g; ST.gammaSat = it.g + 1.4; ST.spt = it.spt;
+  ST.soilNote = it.n + ' — ' + it.soil;
+  try{ syncInputs(); readInputs(); renderAll(); }catch(e){}
+  try{ vzRefresh(); }catch(e){}
+  try{ switchTab('tanah'); toast('Parameter ' + it.n + ' diterapkan ke analisis'); }catch(e){}
+  if(GEO.map) GEO.map.closePopup();
+};
+
+function geoInit(){
+  if(GEO.ready) return;
+  var el = document.getElementById('geoMap');
+  if(!el) return;
+  if(typeof L === 'undefined'){ setTimeout(geoInit, 600); return; }
+  GEO.data = GEO_DATA.map(function(d){
+    var o = JSON.parse(JSON.stringify(d));
+    var r = geoCalc(o); o._qu = r.qu; o._qa = r.qa;
+    return o;
+  });
+  GEO.proj = GEO_PROJ.map(function(d){
+    var o = JSON.parse(JSON.stringify(d));
+    var r = geoCalc(o); o._qu = r.qu; o._qa = r.qa;
+    return o;
+  });
+
+  var map = L.map('geoMap', {center:[-2.4, 118], zoom:5, zoomControl:false, minZoom:4, maxZoom:18, worldCopyJump:false});
+  GEO.map = map;
+
+  var attr = '&copy; Esri, OpenStreetMap, Maxar';
+  GEO.tiles = {
+    topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:attr}),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:attr}),
+    street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:attr})
+  };
+  GEO.tiles.topo.addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.control.scale({position:'bottomright', imperial:false}).addTo(map);
+
+  GEO.layers.zona = L.layerGroup();
+  GEO.layers.proyek = L.layerGroup();
+
+  GEO.data.forEach(function(it){
+    var band = geoBand(it._qa);
+    var r = 5 + Math.min(9, it._qa/45);
+    var m = L.circleMarker([it.lat, it.lon], {
+      radius:r, color:band.c, weight:1.6, opacity:0.95,
+      fillColor:band.c, fillOpacity:0.45
+    });
+    m.bindPopup(geoPopup(it), {maxWidth:330, className:'geoPopWrap'});
+    m.bindTooltip(it.n + ' · q<sub>a</sub> ' + vzFmt(it._qa,0) + ' kPa', {direction:'top', className:'geoPopWrap'});
+    m.on('mouseover', function(){ m.setStyle({fillOpacity:0.75, weight:2.6}); });
+    m.on('mouseout', function(){ m.setStyle({fillOpacity:0.45, weight:1.6}); });
+    it._marker = m;
+    GEO.layers.zona.addLayer(m);
+  });
+
+  GEO.proj.forEach(function(it){
+    var icon = L.divIcon({className:'geoProjIcon', html:'<span class="gpPin"></span>', iconSize:[18,18], iconAnchor:[9,9]});
+    var m = L.marker([it.lat, it.lon], {icon:icon});
+    m.bindPopup(geoPopup(it), {maxWidth:330, className:'geoPopWrap'});
+    m.bindTooltip(it.n, {direction:'top', className:'geoPopWrap'});
+    it._marker = m;
+    GEO.layers.proyek.addLayer(m);
+  });
+
+  GEO.layers.zona.addTo(map);
+  GEO.layers.proyek.addTo(map);
+  GEO.ready = true;
+
+  geoStats();
+  geoList();
+  geoWireTools();
+  setTimeout(function(){ try{ map.invalidateSize(); }catch(e){} }, 320);
+  setTimeout(function(){ try{ map.invalidateSize(); }catch(e){} }, 1200);
+}
+
+function geoStats(){
+  var qas = GEO.data.map(function(d){ return d._qa; });
+  var avg = qas.reduce(function(a,b){return a+b;},0)/Math.max(1,qas.length);
+  var mn = Math.min.apply(null, qas), mx = Math.max.apply(null, qas);
+  var set = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+  set('gsCount', GEO.data.length + ' wilayah');
+  set('gsAvg', vzFmt(avg,0) + ' kPa');
+  set('gsMin', vzFmt(mn,0) + ' kPa');
+  set('gsMax', vzFmt(mx,0) + ' kPa');
+  var bands = [
+    {k:'< 100 · lunak / gambut', c:'#f43f5e', n:0},
+    {k:'100–175 · sedang', c:'#f59e0b', n:0},
+    {k:'175–260 · kaku / padat', c:'#22d3ee', n:0},
+    {k:'> 260 · sangat padat', c:'#10b981', n:0}
+  ];
+  GEO.data.forEach(function(d){
+    var q = d._qa;
+    if(q < 100) bands[0].n++; else if(q < 175) bands[1].n++; else if(q < 260) bands[2].n++; else bands[3].n++;
+  });
+  var box = document.getElementById('gsBars');
+  if(box){
+    box.innerHTML = bands.map(function(b){
+      var pct = b.n/Math.max(1,GEO.data.length)*100;
+      return '<div class="termRow" style="margin-bottom:8px"><div class="th"><span style="font-size:10.5px">'+b.k+'</span><b style="font-size:11px">'+b.n+'</b></div>'+
+        '<div class="termBar" style="height:9px"><span style="width:'+pct.toFixed(1)+'%;background:linear-gradient(90deg,'+b.c+','+b.c+'aa)"></span></div></div>';
+    }).join('');
+  }
+}
+function geoList(){
+  var box = document.getElementById('geoList'); if(!box) return;
+  var sorted = GEO.data.slice().sort(function(a,b){ return b._qa - a._qa; });
+  box.innerHTML = sorted.map(function(d){
+    var band = geoBand(d._qa);
+    return '<div class="geoItem" data-gid="'+d.id+'">' +
+      '<div class="nm">'+d.n+'<small>'+d.soil+'</small></div>' +
+      '<div class="qa" style="color:'+band.c+'">'+vzFmt(d._qa,0)+' kPa</div></div>';
+  }).join('');
+  box.querySelectorAll('[data-gid]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var id = el.getAttribute('data-gid');
+      var it = null; GEO.data.forEach(function(d){ if(d.id===id) it = d; });
+      if(!it || !GEO.map) return;
+      GEO.map.flyTo([it.lat, it.lon], 9, {duration:0.9});
+      setTimeout(function(){ it._marker.openPopup(); }, 950);
+    });
+  });
+}
+function geoSearchWire(){
+  var inp = document.getElementById('geoSearch'), list = document.getElementById('geoSugList');
+  if(!inp || !list) return;
+  function render(){
+    var q = (inp.value || '').toLowerCase().trim();
+    if(!q){ list.classList.remove('on'); list.innerHTML = ''; return; }
+    var all = GEO.data.concat(GEO.proj);
+    var hits = all.filter(function(d){
+      return (d.n + ' ' + (d.p||'') + ' ' + (d.t||'') + ' ' + d.soil).toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 8);
+    list.innerHTML = hits.length ? hits.map(function(d){
+      return '<button data-gid="'+d.id+'">'+d.n+' <small>· '+(d.p||d.t)+' · '+d.soil+'</small></button>';
+    }).join('') : '<button disabled>Tidak ada hasil</button>';
+    list.classList.add('on');
+    list.querySelectorAll('[data-gid]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.getAttribute('data-gid'), it = null;
+        GEO.data.concat(GEO.proj).forEach(function(d){ if(d.id===id) it = d; });
+        if(!it || !GEO.map) return;
+        inp.value = it.n; list.classList.remove('on');
+        GEO.map.flyTo([it.lat, it.lon], 10, {duration:0.9});
+        setTimeout(function(){ it._marker.openPopup(); }, 950);
+      });
+    });
+  }
+  inp.addEventListener('input', render);
+  inp.addEventListener('focus', render);
+  document.addEventListener('click', function(e){
+    if(!list.contains(e.target) && e.target !== inp) list.classList.remove('on');
+  });
+}
+function geoWireTools(){
+  geoSearchWire();
+  document.querySelectorAll('[data-geolayer]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var k = b.getAttribute('data-geolayer');
+      var on = b.classList.toggle('on');
+      if(!GEO.map) return;
+      if(on) GEO.map.addLayer(GEO.layers[k]); else GEO.map.removeLayer(GEO.layers[k]);
+    });
+  });
+  document.querySelectorAll('[data-geobase]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var k = b.getAttribute('data-geobase');
+      if(!GEO.map) return;
+      Object.keys(GEO.tiles).forEach(function(x){ GEO.map.removeLayer(GEO.tiles[x]); });
+      GEO.tiles[k].addTo(GEO.map);
+      GEO.activeBase = k;
+      document.querySelectorAll('[data-geobase]').forEach(function(o){ o.classList.toggle('on', o === b); });
+    });
+  });
+  var fit = document.getElementById('geoFit');
+  if(fit) fit.addEventListener('click', function(){
+    if(!GEO.map) return;
+    GEO.map.flyTo([-2.4,118], 5, {duration:0.9});
+  });
+}
+
+/* ============================================================
+   EKSTENSI BASIS PENGETAHUAN CHATBOT
+   ============================================================ */
+function geoKbEntry(){
+  var arr = (GEO.data && GEO.data.length) ? GEO.data : GEO_DATA.map(function(d){
+    var o = JSON.parse(JSON.stringify(d)); var r = geoCalc(o); o._qu = r.qu; o._qa = r.qa; return o;
+  });
+  var sorted = arr.slice().sort(function(a,b){ return a._qa - b._qa; });
+  var low = sorted.slice(0,3).map(function(d){ return d.n + ' (' + vzFmt(d._qa,0) + ' kPa)'; }).join(', ');
+  var high = sorted.slice(-3).reverse().map(function(d){ return d.n + ' (' + vzFmt(d._qa,0) + ' kPa)'; }).join(', ');
+  var avg = arr.reduce(function(a,b){ return a + b._qa; }, 0)/arr.length;
+  return {k:['peta','zona','wilayah','lokasi','daerah','indonesia','sebaran'],
+    f:function(){
+      return {q:'peta zona daya dukung tanah Indonesia',
+        html:'<h5>Ringkasan</h5><p>Peta geoteknik memuat <b>'+arr.length+' wilayah</b> dan <b>8 titik proyek</b> dengan nilai q<sub>a</sub> tipikal hasil hitung Terzaghi pada pondasi 1,5 × 1,5 m, D<sub>f</sub> 1,5 m, FOS 3.</p>'+
+        '<h5>Risalah Teknis</h5><p>q<sub>a</sub> rata-rata nasional ± <b>'+vzFmt(avg,0)+' kPa</b>. Nilai terendah: '+low+'. Nilai tertinggi: '+high+'. Pola umum: endapan gambut dan lempung lunak pesisir (Kalimantan, pantai utara Jawa, Sumatera timur) memberi q<sub>a</sub> rendah, sedangkan endapan vulkanik dan pasir padat (Bali, Palu, Batam, Balikpapan) memberi q<sub>a</sub> tinggi.</p>'+
+        '<h5>Saran Teknis</h5><ul><li>Buka tab <b>Peta</b>, klik penanda wilayah untuk risalah, saran dan kesimpulan lokasi.</li><li>Gunakan tombol <b>Terapkan ke Analisis</b> untuk memuat parameter wilayah ke mesin hitung.</li><li>Nilai peta bersifat tipikal; konfirmasi dengan SPT, CPT, atau uji beban setempat.</li></ul>'+
+        '<h5>Kesimpulan</h5><p>Peta ini menjadi titik awal pemilihan jenis pondasi per wilayah, bukan pengganti penyelidikan tanah.</p>'+srcBar('daya dukung tanah peta Indonesia geoteknik')};
+    }};
+}
+function vizKbEntry(){
+  return {k:['keruntuhan','simulasi','visual','animasi','zona aktif','baji','heave'],
+    f:function(){
+      return {q:'shear failure mechanism bearing capacity',
+        html:'<h5>Ringkasan</h5><p>Keruntuhan geser pondasi dangkal terjadi dalam tiga zona: <b>Zona I</b> baji aktif di bawah telapak yang bergerak turun, <b>Zona II</b> kipas radial yang meneruskan tegangan geser, dan <b>Zona III</b> baji pasif yang mendorong tanah ke samping sehingga permukaan naik (heave).</p>'+
+        '<h5>Risalah Teknis</h5><p>Batas baji aktif membentuk sudut 45° + φ/2 terhadap horizontal. Untuk φ = '+vzFmt(ST.phi,0)+'° sudut tersebut '+vzFmt(45+ST.phi/2,1)+'°, sehingga kedalaman baji aktif ± '+vzFmt((ST.B/2)*Math.tan((45+ST.phi/2)*Math.PI/180),2)+' m di bawah dasar pondasi (B = '+vzFmt(ST.B,2)+' m). Pada tab <b>Simulasi Visual</b>, ketiga zona digambar ulang setiap kali parameter berubah.</p>'+
+        '<h5>Saran Teknis</h5><ul><li>Pada tanah berlapis, bidang keruntuhan dapat mencapai lapisan lemah di bawahnya; tinjau daya dukung lapisan bawah.</li><li>Bila muka air tanah naik ke dalam zona keruntuhan, gunakan γ′ dan naikkan FOS.</li><li>Beban eksentris atau miring memerlukan faktor reduksi tambahan (Hansen/Vesic).</li></ul>'+
+        '<h5>Kesimpulan</h5><p>Visualisasi zona membantu menjelaskan mengapa lebar B dan sudut geser φ sangat mempengaruhi suku 0,5γBN<sub>γ</sub>.</p>'+srcBar('Terzaghi shear failure zones foundation')};
+    }};
+}
+try{
+  if(typeof KB !== 'undefined' && KB.push){
+    KB.push(geoKbEntry());
+    KB.push(vizKbEntry());
+    KB.push({k:['gambut','peat'],
+      f:function(){ return {q:'peat soil bearing capacity',
+        html:'<h5>Ringkasan</h5><p>Gambut memiliki daya dukung sangat rendah (q<sub>a</sub> tipikal 30–60 kPa), kompresibilitas tinggi, dan penurunan jangka panjang besar akibat dekomposisi sekunder.</p>'+
+        '<h5>Risalah Teknis</h5><p>Karena c dan φ rendah, suku kapasitas kecil dan penurunan hampir selalu menentukan. Pada peta, wilayah gambut seperti Pontianak, Banjarmasin, dan Palangka Raya berada pada kategori lunak.</p>'+
+        '<h5>Saran Teknis</h5><ul><li>Gunakan pondasi tiang yang mencapai lapisan keras, atau perbaikan tanah (preloading + PVD, kolom semen).</li><li>Hindari telapak dangkal tanpa perbaikan; batasi tinggi timbunan bertahap.</li><li>Perhitungkan penurunan sekunder dan korosi/keawetan material.</li></ul>'+
+        '<h5>Kesimpulan</h5><p>Perencanaan pada gambut harus berbasis penurunan dan stabilitas timbunan, bukan hanya daya dukung ultimit.</p>'+srcBar('gambut peat bearing capacity construction')};}});
+  }
+}catch(e){}
+
+/* ============================================================
+   HOOK: renderAll, switchTab, init
+   ============================================================ */
+(function(){
+  if(typeof renderAll === 'function'){
+    var _renderAll = renderAll;
+    renderAll = function(){
+      var r = _renderAll.apply(this, arguments);
+      try{ vzRefresh(); }catch(e){}
+      return r;
+    };
+  }
+  if(typeof switchTab === 'function'){
+    var _switchTab = switchTab;
+    switchTab = function(name){
+      var r = _switchTab.apply(this, arguments);
+      if(name === 'peta'){
+        geoInit();
+        setTimeout(function(){ try{ if(GEO.map) GEO.map.invalidateSize(); }catch(e){} }, 260);
+        setTimeout(function(){ try{ if(GEO.map) GEO.map.invalidateSize(); }catch(e){} }, 900);
+      }
+      if(name === 'visual'){ try{ vzRefresh(); }catch(e){} }
+      return r;
+    };
+  }
+})();
+
+function vizInit(){
+  vzSyncFromState();
+  vzLabels();
+  vzWire();
+  vzRefresh();
+  if(!VZ.raf) VZ.raf = requestAnimationFrame(vzLoop);
+  window.addEventListener('resize', function(){
+    try{ BULB.key = ''; }catch(e){}
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) VZ.t = performance.now()/1000;
+  });
+  /* peta disiapkan saat tab dibuka agar tidak membebani pemuatan awal */
+  setTimeout(function(){
+    if(document.getElementById('p-geoMapDummy')) return;
+  }, 10);
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(vizInit, 60); });
+else setTimeout(vizInit, 60);
+
 </script>
 </body>
 </html>
